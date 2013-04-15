@@ -1,0 +1,73 @@
+#!/usr/bin/perl -w
+# -*- cperl -*-
+
+=head1 NAME
+
+snmp__ix2015_temperature - SNMP plugin to monitor temperature of router NEC IX2000 series.
+
+=head1 APPLICABLE SYSTEMS
+
+=head1 MAGIC MARKERS
+
+  #%# family=snmpauto
+  #%# capabilities=snmpconf
+
+=head1 AUTHOR
+
+Akira KUMAGAI <kumaguy@gmail.com>
+
+=head1 LICENSE
+
+GPLv2
+
+=cut
+
+use strict;
+use Munin::Plugin;
+use Munin::Plugin::SNMP;
+
+use Carp;
+use Data::Dumper;
+
+
+my $response;
+my $mib = ".1.3.6.1.4.1.119.2.3.84.2.1.1.0";
+
+my $debug=0;
+
+if (defined $ARGV[0] and $ARGV[0] eq "snmpconf") {
+	print "require $mib\n";
+	exit 0;
+}
+
+my ($session, $error);
+
+$session = Munin::Plugin::SNMP->session();
+
+if ($ARGV[0] and $ARGV[0] eq "config") {
+    my ($host,undef,$version) = Munin::Plugin::SNMP->config_session();
+
+    print "host_name $host\n" unless $host eq 'localhost';
+    print "graph_title NEC IX2000 series internal temperature\n";
+
+    print "graph_vlabel Degrees C\n";
+    print "graph_category system\n";
+    print "graph_info This graph shows NEC IX2000 Internal Temperature measured.\n";
+
+    print "temperature.info temperature\n";
+    print "temperature.label temperature\n";
+    print "temperature.type GAUGE\n";
+    print "temperature.warning 60\n";
+    print "temperature.critical 70\n";
+    print "temperature.draw LINE1\n";
+
+    exit 0;
+}
+if (defined ($response = $session->get_single($mib) )) {
+    print "temperature.value ", $response, "\n";
+} else {
+    print "temperature.value U\n";
+}
+
+
+__END__

@@ -1,0 +1,86 @@
+#!/usr/bin/perl -w
+# -*- cperl -*-
+
+=head1 NAME
+
+snmp__ix2015_arpcache_entries_counts - SNMP plugin to monitor counts of arp cache entries on the Router NEC IX2000 series.
+
+=head1 APPLICABLE SYSTEMS
+
+=head1 CONFIGURATION
+
+=head1 MAGIC MARKERS
+
+  #%# family=snmpauto
+  #%# capabilities=snmpconf
+
+=head1 AUTHOR
+
+Akira KUMAGAI <kumaguy@gmail.com>
+
+=head1 LICENSE
+
+GPLv2
+
+=cut
+
+use strict;
+use Munin::Plugin;
+use Munin::Plugin::SNMP;
+
+use Carp;
+use Data::Dumper;
+
+
+my $response;
+my $mib = ".1.3.6.1.2.1.3.1.1.2";
+my $require = "^" . $mib . ".*";
+
+my $debug=0;
+
+if (defined $ARGV[0] and $ARGV[0] eq "snmpconf") {
+	print "require $mib.\n";
+	exit 0;
+}
+
+my ($session, $error);
+
+$session = Munin::Plugin::SNMP->session();
+
+if ($ARGV[0] and $ARGV[0] eq "config") {
+    my ($host,undef,$version) = Munin::Plugin::SNMP->config_session();
+    my $ifDescr;
+
+    print "host_name $host\n" unless $host eq 'localhost';
+    print "graph_title ARP Table Cache Entries Count\n";
+
+    print "graph_order Entries\n";
+    print "graph_vlabel counts\n";
+    print "graph_category system\n";
+    print "graph_info This graph shows counts of ARP Table Cache Entries.\n";
+
+    print "Entries.info entries\n";
+    print "Entries.label entries\n";
+    print "Entries.type GAUGE\n";
+    print "Entries.draw LINE1\n";
+
+    exit 0;
+}
+  # Initial oid
+  my $entry = 0;
+  my $oid = $mib;
+  for(my $walk=0; $walk <= 1024; $walk++)
+  {
+    my $result = $session->get_next_request($oid) or die("Entries.value U\n");
+    if($result){
+      my $data;
+      ($oid, $data) = (%{$result});
+      if($oid !~ /${require}/){ last; }
+
+      $entry++;
+      printf("%s: %s\n", $oid, $data) if $debug;
+    }
+  }
+printf("Entries.value %d\n", $entry);
+
+__END__

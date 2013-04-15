@@ -1,0 +1,226 @@
+#!/usr/bin/perl
+# -*- cperl -*-
+
+=head1 NAME
+
+snmp__aironet_dot11_ - SNMP wildcard plugin to monitor IEEE802.11 stats on Cisco Aironet series.
+
+=head1 SYNOPSIS
+
+=head1 CONFIGURATION
+
+As a rule SNMP plugins need site specific configuration.  The default
+configuration (shown here) will only work on insecure sites/devices:
+
+   [snmp_*]
+	env.version 2
+        env.community public
+
+=head1 MAGIC MARKERS
+
+  #%# family=snmpauto
+  #%# capabilities=snmpconf
+
+
+=head1 LICENSE
+
+GPLv2
+
+=head AUTHOR
+
+Akira KUMAGAI <kumaguy@gmail.com>
+
+=cut
+
+use strict;
+use warnings;
+use Munin::Plugin;
+use Munin::Plugin::SNMP;
+use Data::Dumper;
+use List::Util qw/first/;
+use Carp;
+
+my $debug=0;
+
+
+my %dot11mibs = (
+    "TxFragment"		=> ".1.2.840.10036.2.2.1.1" ,
+    "MuticastTxFrame"	=> ".1.2.840.10036.2.2.1.2" ,
+    "FailedCount"		=> ".1.2.840.10036.2.2.1.3" ,
+    "RetryCount"		=> ".1.2.840.10036.2.2.1.4" ,
+    "MultipleRetryCt"	=> ".1.2.840.10036.2.2.1.5" ,
+    "FrameDupCt"		=> ".1.2.840.10036.2.2.1.6" ,
+    "RTSSuccessCount"	=> ".1.2.840.10036.2.2.1.7" ,
+    "RTSFailureCt"		=> ".1.2.840.10036.2.2.1.8" ,
+    "ACKFailureCt"		=> ".1.2.840.10036.2.2.1.9" ,
+    "RcvdFragmentCt"	=> ".1.2.840.10036.2.2.1.10",
+    "MtiCstRcvFrgmtC"	=> ".1.2.840.10036.2.2.1.11",
+    "FCSErrorCount"		=> ".1.2.840.10036.2.2.1.12",
+    "TxFrames"			=> ".1.2.840.10036.2.2.1.13",
+    "WEPUnDecryptable"	=> ".1.2.840.10036.2.2.1.14",
+);
+
+my @dot11requies = (3, 4, 5, 6, 8, 9 ,10, 11, 12 );
+
+my @ifDescrDo=[];
+$ifDescrDo[0]         = ".1.3.6.1.2.1.2.2.1.2.1";
+$ifDescrDo[1]         = ".1.3.6.1.2.1.2.2.1.2.2";
+
+my $iface;
+
+if (defined $ARGV[0] and $ARGV[0] eq "snmpconf") {
+	print "require\n";
+	exit 0;
+}
+
+if ($Munin::Plugin::me =~ /_do_(\d+)$/) {
+    $iface = int($1);
+} else {
+    $iface = 0;
+}
+
+my ($session, $error);
+my @hasDo = [];
+
+$session = Munin::Plugin::SNMP->session();
+
+if ($ARGV[0] and $ARGV[0] eq "config") 
+{
+    my ($host,undef,$version) = Munin::Plugin::SNMP->config_session();
+    my $ifDescr;
+
+    print "host_name $host\n" unless $host eq 'localhost';
+    printf("graph_title Aironet 802.11 Stats - Dot11Radio %d\n", $iface);
+
+    print "graph_vlabel counts\n";
+    print "graph_category network\n";
+    print "graph_info This graph shows Cisco Aironet AP 802.11 statictics.\n";
+
+	foreach(@ifDescrDo)
+	{
+     if(defined($ifDescr = $session->get_single($_))){
+	   if($ifDescr =~ /Dot11Radio(\d+)/){
+	     $hasDo[$1] = 1;
+	   }
+     }
+   }
+
+	for(my $i=0; $i < @hasDo ; $i++)
+	{
+	if(!$hasDo[$i]){ next; }
+   }
+	foreach (sort{substr($dot11mibs{$a}, rindex($dot11mibs{$a}, ".")+1) <=> substr($dot11mibs{$b}, rindex($dot11mibs{$b}, ".")+1)} keys %dot11mibs)
+	{
+	   my $mibtail = int(substr($dot11mibs{$_}, rindex($dot11mibs{$_}, ".")+1));
+	   if($mibtail ~~ @dot11requies){
+        printf("%s.info %s\n", $_, $_);
+        printf("%s.label %s\n",$_, $_);
+        printf("%s.type COUNTER\n", $_);
+        printf("%s.draw LINE\n", $_);
+      }
+   }
+
+  exit 0;
+}
+
+while(my($label, $mib) = each(%dot11mibs))
+{
+  my $mibtail = int(substr($dot11mibs{$label}, rindex($dot11mibs{$label}, ".")+1));
+  if($mibtail ~~ @dot11requies)
+  {
+    $mib = sprintf("%s.%d", $mib, $iface+1);
+    my $result = $session->get_single($mib);
+    if(!defined($result)){
+      printf("%s.value U\n", $label);
+    }
+    else{
+      printf("%s.value %d\n", $label, $result);
+    }
+  }
+}
+
+__END__
+
+traffic: COUNTER
+exact: GAUGE
+
+
+CISCO-DOT11-ASSOCIATION-MIB::cDot11ActiveWirelessClients.1 = Gauge32: 1 Device
+CISCO-DOT11-ASSOCIATION-MIB::cDot11ActiveWirelessClients.2 = Gauge32: 1 Device
+CISCO-DOT11-ASSOCIATION-MIB::cDot11ActiveBridges.1 = Gauge32: 0 Device
+CISCO-DOT11-ASSOCIATION-MIB::cDot11ActiveBridges.2 = Gauge32: 0 Device
+CISCO-DOT11-ASSOCIATION-MIB::cDot11ActiveRepeaters.1 = Gauge32: 0 Device
+CISCO-DOT11-ASSOCIATION-MIB::cDot11ActiveRepeaters.2 = Gauge32: 0 Device
+
+CISCO-DOT11-ASSOCIATION-MIB::cDot11AssStatsAssociated.1 = Counter32: 7 client
+CISCO-DOT11-ASSOCIATION-MIB::cDot11AssStatsAssociated.2 = Counter32: 6 client
+CISCO-DOT11-ASSOCIATION-MIB::cDot11AssStatsAuthenticated.1 = Counter32: 7 client
+CISCO-DOT11-ASSOCIATION-MIB::cDot11AssStatsAuthenticated.2 = Counter32: 6 client
+CISCO-DOT11-ASSOCIATION-MIB::cDot11AssStatsRoamedIn.1 = Counter32: 0 client
+CISCO-DOT11-ASSOCIATION-MIB::cDot11AssStatsRoamedIn.2 = Counter32: 2 client
+CISCO-DOT11-ASSOCIATION-MIB::cDot11AssStatsRoamedAway.1 = Counter32: 0 client
+CISCO-DOT11-ASSOCIATION-MIB::cDot11AssStatsRoamedAway.2 = Counter32: 0 client
+CISCO-DOT11-ASSOCIATION-MIB::cDot11AssStatsDeauthenticated.1 = Counter32: 6 client
+CISCO-DOT11-ASSOCIATION-MIB::cDot11AssStatsDeauthenticated.2 = Counter32: 5 client
+CISCO-DOT11-ASSOCIATION-MIB::cDot11AssStatsDisassociated.1 = Counter32: 6 client
+CISCO-DOT11-ASSOCIATION-MIB::cDot11AssStatsDisassociated.2 = Counter32: 5 client
+
+IEEE802dot11-MIB::dot11TransmittedFragmentCount.1 = Counter32: 154004
+IEEE802dot11-MIB::dot11TransmittedFragmentCount.2 = Counter32: 929290
+IEEE802dot11-MIB::dot11MulticastTransmittedFrameCount.1 = Counter32: 72556
+IEEE802dot11-MIB::dot11MulticastTransmittedFrameCount.2 = Counter32: 136711
+IEEE802dot11-MIB::dot11FailedCount.1 = Counter32: 540272
+IEEE802dot11-MIB::dot11FailedCount.2 = Counter32: 65673
+IEEE802dot11-MIB::dot11RetryCount.1 = Counter32: 4633
+IEEE802dot11-MIB::dot11RetryCount.2 = Counter32: 47653
+IEEE802dot11-MIB::dot11MultipleRetryCount.1 = Counter32: 719
+IEEE802dot11-MIB::dot11MultipleRetryCount.2 = Counter32: 11548
+IEEE802dot11-MIB::dot11FrameDuplicateCount.1 = Counter32: 249
+IEEE802dot11-MIB::dot11FrameDuplicateCount.2 = Counter32: 7037
+IEEE802dot11-MIB::dot11RTSSuccessCount.1 = Counter32: 66770
+IEEE802dot11-MIB::dot11RTSSuccessCount.2 = Counter32: 2216
+IEEE802dot11-MIB::dot11RTSFailureCount.1 = Counter32: 1085403
+IEEE802dot11-MIB::dot11RTSFailureCount.2 = Counter32: 429006
+IEEE802dot11-MIB::dot11ACKFailureCount.1 = Counter32: 8545
+IEEE802dot11-MIB::dot11ACKFailureCount.2 = Counter32: 137490
+IEEE802dot11-MIB::dot11ReceivedFragmentCount.1 = Counter32: 0
+IEEE802dot11-MIB::dot11ReceivedFragmentCount.2 = Counter32: 0
+IEEE802dot11-MIB::dot11MulticastReceivedFrameCount.1 = Counter32: 0
+IEEE802dot11-MIB::dot11MulticastReceivedFrameCount.2 = Counter32: 0
+IEEE802dot11-MIB::dot11FCSErrorCount.1 = Counter32: 9474486
+IEEE802dot11-MIB::dot11FCSErrorCount.2 = Counter32: 20682
+IEEE802dot11-MIB::dot11TransmittedFrameCount.1 = Counter32: 4150848
+IEEE802dot11-MIB::dot11TransmittedFrameCount.2 = Counter32: 4527186
+IEEE802dot11-MIB::dot11WEPUndecryptableCount.1 = Counter32: 0
+IEEE802dot11-MIB::dot11WEPUndecryptableCount.2 = Counter32: 8
+
+
+.1.2.840.10036.2.2.1.1.1 = Counter32: 35081650
+.1.2.840.10036.2.2.1.1.2 = Counter32: 62503058
+.1.2.840.10036.2.2.1.2.1 = Counter32: 457409
+.1.2.840.10036.2.2.1.2.2 = Counter32: 623471
+.1.2.840.10036.2.2.1.3.1 = Counter32: 6410358
+.1.2.840.10036.2.2.1.3.2 = Counter32: 617421
+.1.2.840.10036.2.2.1.4.1 = Counter32: 2958110
+.1.2.840.10036.2.2.1.4.2 = Counter32: 15953995
+.1.2.840.10036.2.2.1.5.1 = Counter32: 961052
+.1.2.840.10036.2.2.1.5.2 = Counter32: 3572366
+.1.2.840.10036.2.2.1.6.1 = Counter32: 75059
+.1.2.840.10036.2.2.1.6.2 = Counter32: 304426
+.1.2.840.10036.2.2.1.7.1 = Counter32: 104513
+.1.2.840.10036.2.2.1.7.2 = Counter32: 73935
+.1.2.840.10036.2.2.1.8.1 = Counter32: 46193
+.1.2.840.10036.2.2.1.8.2 = Counter32: 295546
+.1.2.840.10036.2.2.1.9.1 = Counter32: 17453296
+.1.2.840.10036.2.2.1.9.2 = Counter32: 21809268
+.1.2.840.10036.2.2.1.10.1 = Counter32: 0
+.1.2.840.10036.2.2.1.10.2 = Counter32: 0
+.1.2.840.10036.2.2.1.11.1 = Counter32: 0
+.1.2.840.10036.2.2.1.11.2 = Counter32: 0
+.1.2.840.10036.2.2.1.12.1 = Counter32: 766905065
+.1.2.840.10036.2.2.1.12.2 = Counter32: 59342698
+.1.2.840.10036.2.2.1.13.1 = Counter32: 431896085
+.1.2.840.10036.2.2.1.13.2 = Counter32: 142948564
+.1.2.840.10036.2.2.1.14.1 = Counter32: 1005
+.1.2.840.10036.2.2.1.14.2 = Counter32: 10
+
