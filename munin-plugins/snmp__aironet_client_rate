@@ -1,0 +1,123 @@
+#!/usr/bin/perl -w
+# -*- cperl -*-
+
+=head1 NAME
+
+snmp__aironet_clients_multi - SNMP wildcard plugin to monitor associated clients or bridges on Cisco Aironet series.
+
+=head1 APPLICABLE SYSTEMS
+
+Cisco Aironet series, 802.11a/b/g
+I guess did not work n radio, I don't have any 802.11an/gn aironet.
+
+=head1 CONFIGURATION
+
+As a rule SNMP plugins need site specific configuration.  The default
+configuration (shown here) will only work on insecure sites/devices:
+
+   [snmp_*]
+	env.version 2
+        env.community public
+
+=head1 MAGIC MARKERS
+
+  #%# family=snmpauto
+  #%# capabilities=snmpconf
+
+=head1 VERSION
+
+  $Id$
+
+=head1 AUTHOR
+
+Akira KUMAGAI <kumaguy@gmail.com>
+
+=head1 LICENSE
+
+GPLv2
+
+=cut
+
+use strict;
+use Munin::Plugin;
+use Munin::Plugin::SNMP;
+use Data::Dumper;
+use Carp;
+
+my $response;
+
+my $oid     = ".1.3.6.1.4.1.9.9.273.1.3.1.1.1";
+my $require = $oid;
+my @rates   = (1, 2, 5.5, 6, 9, 11, 12, 18, 24, 36, 48, 54);
+my %color   = (1 => "F51D30", 2 => "FF5700", 5.5 => "FFAB00", 6 => "FFD700", 9 => "4123A1", 11 => "4444FF", 12 => "4668E4", 18 => "157419", 24 => "35962B", 36 => "74C366", 48 => "7EE600", 54 => "C4FD3D");
+my $debug=0;
+my %baudrates = ();
+
+if (defined $ARGV[0] and $ARGV[0] eq "snmpconf") {
+	print "require $require\n";
+	exit 0;
+}
+
+my ($session, $error);
+
+$session = Munin::Plugin::SNMP->session();
+
+my ($host,undef,$version) = Munin::Plugin::SNMP->config_session();
+
+if($ARGV[0] and $ARGV[0] eq "config")
+{
+   print "host_name $host\n" unless $host eq 'localhost';
+   print "graph_title 802.11 Client Rate\n";
+
+   print "graph_vlabel clients\n";
+   print "graph_category network\n";
+   print "graph_info This graph shows counts of Dot11 rates.\n";
+
+
+   print "graph_order ";
+   foreach(sort{$b <=> $a} @rates)
+   {
+     printf("_%dM ", int($_));
+   }
+   print "\n";
+
+
+   foreach(@rates)
+   {
+     printf("_%dM.info %.1fMbps\n", int($_), $_);
+     printf("_%dM.label %.1fMbps\n", int($_), $_);
+     printf("_%dM.type GAUGE\n", int($_));
+     printf("_%dM.draw AREASTACK\n", int($_));
+     printf("_%dM.max 384\n", int($_));
+     printf("_%dM.min 0\n", int($_));
+     printf("_%dM.colour %s\n", int($_), $color{$_});
+   }
+   exit 0;
+}
+
+
+for(my $walk=0; $walk <= 1024; $walk++)
+{
+  my $result = $session->get_next_request($oid) or die("_1.0M.value U\n");
+  if($result){
+    my $data;
+    ($oid, $data) = (%{$result});
+    if($oid !~ /${require}/){ last; }
+
+    my $baud = unpack("C", $data) /2;
+    $baudrates{$baud}++;
+  }
+}
+
+foreach(@rates)
+{
+  if($baudrates{$_}){
+    printf("_%dM.value %d\n", int($_), $baudrates{$_});
+  }
+  else{
+   printf("_%dM.value 0\n", int($_));
+  }
+}
+
+__END__
+
