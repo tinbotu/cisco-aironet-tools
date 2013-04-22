@@ -11,8 +11,7 @@ munin
 
   .. image:: http://cache.gyazo.com/9da72832b6f98c1167460b01bc7aaa5e.png
 
-
-
+---------------------
 
 - snmp__aironet_clients_multi
 
@@ -20,8 +19,17 @@ munin
   
   .. image:: http://cache.gyazo.com/c3f2c49b8acb12c2c72c987e0c6816cf.png
 
+---------------------
 
+- snmp__aironet_client_rate
 
+  a plugin monitoring client transmission rates on Cisco Aironet.
+
+  inspired by cacti plugin `NEW Cisco Aironet - graphing wireless AP performance - v1.1 <http://forums.cacti.net/viewtopic.php?f=12&t=29294&hilit=aironet&sid=1bc7287d2ef1dbb8dc9ea176977ea01a>`_ with Tcl.
+
+  .. image:: http://cache.gyazo.com/9cdd6a43d907713ca639b087d7ee4ae1.png
+
+---------------------
 
 - snmp__ix2015_arpcache_entries_counts
 
@@ -29,14 +37,13 @@ munin
   
   .. image:: http://cache.gyazo.com/f1ccb379b0f4c5100bf7dd2203633399.png
 
-
+---------------------
 
 - snmp__ix2015_temperature
 
   a plugin monitoring temperature of NEC IX2000 series.
 
   .. image:: http://cache.gyazo.com/57ab7296fdc3ecc7014e1b7e46222150.png
-
 
 
 
