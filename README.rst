@@ -27,7 +27,7 @@ munin
 
   inspired by cacti plugin `NEW Cisco Aironet - graphing wireless AP performance - v1.1 <http://forums.cacti.net/viewtopic.php?f=12&t=29294&hilit=aironet&sid=1bc7287d2ef1dbb8dc9ea176977ea01a>`_ with Tcl.
 
-  .. image:: http://cache.gyazo.com/9cdd6a43d907713ca639b087d7ee4ae1.png
+  .. image:: http://cache.gyazo.com/9a5cc6a1828aa6590ad4b6ec20828d69.png
 
 ---------------------
 
