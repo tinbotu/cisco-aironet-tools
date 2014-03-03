@@ -7,8 +7,7 @@ snmp__aironet_clients_multi - SNMP wildcard plugin to monitor associated clients
 
 =head1 APPLICABLE SYSTEMS
 
-Cisco Aironet series, 802.11a/b/g
-I guess did not work n radio, I don't have any 802.11an/gn aironet.
+Cisco Aironet series, 802.11a/b/g/n
 
 =head1 CONFIGURATION
 
@@ -31,6 +30,7 @@ configuration (shown here) will only work on insecure sites/devices:
 =head1 AUTHOR
 
 Akira KUMAGAI <kumaguy@gmail.com>
+Karl Dyson <hackery@perlbitch.com> (802.11n additions based on observation of AIR-AP1142N-E-K9)
 
 =head1 LICENSE
 
@@ -49,7 +49,37 @@ my $response;
 my $oid     = ".1.3.6.1.4.1.9.9.273.1.3.1.1.1";
 my $require = $oid;
 my @rates   = (1, 2, 5.5, 6, 9, 11, 12, 18, 24, 36, 48, 54);
-my %color   = (1 => "F51D30", 2 => "FF5700", 5.5 => "FFAB00", 6 => "FFD700", 9 => "4123A1", 11 => "4444FF", 12 => "4668E4", 18 => "157419", 24 => "35962B", 36 => "74C366", 48 => "7EE600", 54 => "C4FD3D");
+push @rates, "m$_" for(0..15);
+my %color = qw/
+1 091321
+2 122643
+55 1B3965
+6 244C87
+9 2D5FA9
+11 3672CB
+12 3F85ED
+18 48990F
+24 51AC31
+36 5ABF53
+48 63D275
+54 6CE597
+m0 75F8B9
+m1 7F0BDB
+m2 881EFD
+m3 91321F
+m4 9A4541
+m5 A35863
+m6 AC6B85
+m7 B57EA7
+m8 BE91C9
+m9 C7A4EB
+m10 D0B80D
+m11 D9CB2F
+m12 E2DE51
+m13 EBF173
+m14 F50495
+m15 FE17B7
+/;
 my $debug=0;
 my %baudrates = ();
 
@@ -75,22 +105,27 @@ if($ARGV[0] and $ARGV[0] eq "config")
 
 
    print "graph_order ";
-   foreach(sort{$b <=> $a} @rates)
+   # this could be foreach my $r (reverse @rates) if preferred...
+   foreach my $r (@rates)
    {
-     printf("_%dM ", int($_));
+     my $int_label = $r;
+     $int_label =~ s/\.//;
+     printf("_%s".($r =~ m/^[\d\.]+$/ ? "M" : "")." ", $int_label);
    }
    print "\n";
 
 
-   foreach(@rates)
+   foreach my $r (@rates)
    {
-     printf("_%dM.info %.1fMbps\n", int($_), $_);
-     printf("_%dM.label %.1fMbps\n", int($_), $_);
-     printf("_%dM.type GAUGE\n", int($_));
-     printf("_%dM.draw AREASTACK\n", int($_));
-     printf("_%dM.max 384\n", int($_));
-     printf("_%dM.min 0\n", int($_));
-     printf("_%dM.colour %s\n", int($_), $color{$_});
+     my $int_label = $r;
+     $int_label =~ s/\.//;
+     printf("_%s".($r =~ m/^[\d\.]+$/ ? "M" : "").".info %s".($r =~ m/^[\d\.]+$/ ? "Mbps" : "")."\n", $int_label, $r);
+     printf("_%s".($r =~ m/^[\d\.]+$/ ? "M" : "").".label %s".($r =~ m/^[\d\.]+$/ ? "Mbps" : "")."\n", $int_label, $r);
+     printf("_%s".($r =~ m/^[\d\.]+$/ ? "M" : "").".type GAUGE\n", $int_label);
+     printf("_%s".($r =~ m/^[\d\.]+$/ ? "M" : "").".draw AREASTACK\n", $int_label);
+     printf("_%s".($r =~ m/^[\d\.]+$/ ? "M" : "").".max 384\n", $int_label);
+     printf("_%s".($r =~ m/^[\d\.]+$/ ? "M" : "").".min 0\n", $int_label);
+     printf("_%s".($r =~ m/^[\d\.]+$/ ? "M" : "").".colour %s\n", $int_label, $color{$int_label});
    }
    exit 0;
 }
@@ -104,18 +139,27 @@ for(my $walk=0; $walk <= 1024; $walk++)
     ($oid, $data) = (%{$result});
     if($oid !~ /${require}/){ last; }
 
-    my $baud = unpack("C", $data) /2;
+    my $baud;
+    if($data =~ m/^0x/) {
+        $baud = sprintf "m%d", hex($data);
+    } elsif($data =~ /[[:print:]]/) {
+        $baud = unpack("C", $data) /2;
+    } else {
+        $baud = "m".unpack("C", $data);
+    }
     $baudrates{$baud}++;
   }
 }
 
-foreach(@rates)
+foreach my $r (@rates)
 {
-  if($baudrates{$_}){
-    printf("_%dM.value %d\n", int($_), $baudrates{$_});
+  my $int_label = $r;
+  $int_label =~ s/\.//;
+  if($baudrates{$r}){
+    printf("_%s".($r =~ m/^[\d\.]+$/ ? "M" : "").".value %d\n", $int_label, $baudrates{$r});
   }
   else{
-   printf("_%dM.value 0\n", int($_));
+   printf("_%s".($r =~ m/^[\d\.]+$/ ? "M" : "").".value 0\n", $int_label);
   }
 }
 
