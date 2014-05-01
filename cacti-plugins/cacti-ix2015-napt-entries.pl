@@ -30,7 +30,7 @@ my $userid = $ARGV[1] || "admin";
 my $passwd = $ARGV[2] || "";
 my $debug  = $ARGV[3] ? 1:undef;
 
-my $command = "show ip napt transl";
+my $command = "show ip napt transl FastEthernet0/0.1";
 
 my $start  = 'Interface: FastEthernet0\/0.1';
 my $search = '^NAPT Cache \- ([0-9]+) entry, [0-9]+ free, ([0-9]+) peak, [0-9]+ create, ([0-9]+) overflow';
@@ -45,8 +45,8 @@ if(@ARGV < 3){
 
 
 my $telnet = Net::Telnet->new(
-  Timeout   => 2,
-  Prompt    => '/(?m:^[\w.-]+\s?(?:\((dhcp-config|config)[^\)]*\))?\s?[\$#>]\s?(?:\(enable\))?\s*$)/',
+  Timeout   => 7,
+  Prompt    => '/((?m:^[\w.-]+\s?(?:\((dhcp-config|config)[^\)]*\))?\s?[\$#>]\s?(?:\(enable\))?\s*$)|\-\-More\-\-)/',
 #  Input_log => "./input.txt",
 );
 
@@ -59,23 +59,15 @@ $telnet->waitfor("/Password: /i");
 $telnet->print($passwd);
 
 $telnet->waitfor("/# /");
-$telnet->print("en");
 
-# % You may use `svintr-config' command with administrator privilege.
-eval{
-  $telnet->waitfor('/svintr-config/');
-  $telnet->print("svintr-config");
-};
-
-$telnet->waitfor("/# /");
-$telnet->print("terminal length 0");
-
-$telnet->waitfor('/\(config\)# /');
 my @lines = $telnet->cmd($command);
+$telnet->print("q");
+#sleep(1);
 
-sleep(1);
-
-$telnet->print("exit");
+eval{
+	$telnet->waitfor('--More--');
+	$telnet->print('q');
+};
 $telnet->print("exit");
 
 $telnet->waitfor("/# /");
@@ -91,6 +83,7 @@ foreach(@lines)
  if(!$skip && /$search/){
    @values = ($1, $2, $3);
    print STDERR if $debug;
+   last;
  }
 }
 
