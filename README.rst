@@ -19,6 +19,12 @@ munin
   
   .. image:: http://cache.gyazo.com/c3f2c49b8acb12c2c72c987e0c6816cf.png
 
+
+- snmp__zoneflex_clients_multi **new**
+
+  Ruckus Zoneflex version same above plugin.
+
+
 ---------------------
 
 - snmp__aironet_client_rate
