@@ -74,13 +74,4 @@ cacti
 
 tools
 =====
-- disconnectLinkLocalAddressV4.pl
-
-    This script help to disconnect IPv4 link local addres e.g. 169.254.x.x, from Cisco Aironet series.
-
-    IPv4 link local address can happen to appear, this case that, the client associated to access point was unable to get from DHCP server. it may occurs if the access point reach capacity.
-
-    The point is that client has 169.254 will lose internet connection and cannot resume until the user disables wifi once manually. unfortunately This is indiscernible for users.
-
-
 
